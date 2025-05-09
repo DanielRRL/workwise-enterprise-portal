@@ -15,10 +15,17 @@ import NotFound from "@/pages/NotFound";
 import AdminDashboard from "@/pages/Admin/Dashboard";
 import EmployeeList from "@/pages/Admin/Employees/EmployeeList";
 import RoleList from "@/pages/Admin/Roles/RoleList";
+import ScheduleList from "@/pages/Admin/Schedules/ScheduleList";
+import EvaluationList from "@/pages/Admin/Evaluations/EvaluationList";
+import PayrollView from "@/pages/Admin/Payroll/PayrollView";
+import RequestList from "@/pages/Admin/Requests/RequestList";
 
 // Employee Pages
 import EmployeeProfile from "@/pages/Employee/Profile";
 import MySchedule from "@/pages/Employee/MySchedule";
+import MyPayroll from "@/pages/Employee/MyPayroll";
+import MyEvaluations from "@/pages/Employee/MyEvaluations";
+import MyRequests from "@/pages/Employee/MyRequests";
 
 const queryClient = new QueryClient();
 
@@ -38,14 +45,19 @@ const App = () => (
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/employees" element={<EmployeeList />} />
               <Route path="/admin/roles" element={<RoleList />} />
-              {/* Add more admin routes as needed */}
+              <Route path="/admin/schedules" element={<ScheduleList />} />
+              <Route path="/admin/evaluations" element={<EvaluationList />} />
+              <Route path="/admin/payroll" element={<PayrollView />} />
+              <Route path="/admin/requests" element={<RequestList />} />
             </Route>
             
             {/* Employee Routes */}
             <Route element={<PrivateRoute allowedRoles={["employee"]} />}>
               <Route path="/employee/profile" element={<EmployeeProfile />} />
               <Route path="/employee/schedule" element={<MySchedule />} />
-              {/* Add more employee routes as needed */}
+              <Route path="/employee/payroll" element={<MyPayroll />} />
+              <Route path="/employee/evaluations" element={<MyEvaluations />} />
+              <Route path="/employee/requests" element={<MyRequests />} />
             </Route>
             
             {/* Catch-all route */}
