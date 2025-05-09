@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -27,10 +26,13 @@ import {
 } from "lucide-react";
 
 export const AppSidebar: React.FC = () => {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar(); // Use state instead of collapsed
   const { user } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
+  
+  // Check if sidebar is collapsed
+  const collapsed = state === "collapsed";
   
   // Navigation items based on user role
   const adminItems = [
@@ -61,16 +63,19 @@ export const AppSidebar: React.FC = () => {
       isActive ? "bg-sidebar-accent text-primary font-medium" : "hover:bg-sidebar-accent/50"
     }`;
 
+  // Check if any nav item is active to determine if we should keep the sidebar group open
+  const isGroupExpanded = navItems.some(item => isActive(item.url));
+
   return (
     <Sidebar
       className={collapsed ? "w-16" : "w-64"}
-      collapsible
+      collapsible="icon" // Use "icon" instead of boolean true
     >
       {/* Sidebar trigger (visible in mobile/collapsed state) */}
       <SidebarTrigger className="m-2 self-end md:hidden" />
 
       <SidebarContent>
-        <SidebarGroup defaultOpen>
+        <SidebarGroup>
           <SidebarGroupLabel className="uppercase text-xs font-semibold text-muted-foreground">
             {user?.role === "admin" ? "Admin Panel" : "Employee Portal"}
           </SidebarGroupLabel>

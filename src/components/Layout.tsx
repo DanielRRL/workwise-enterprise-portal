@@ -6,7 +6,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <SidebarProvider collapsedWidth={64}>
+    <SidebarProvider>
       <div className="min-h-screen flex flex-col w-full">
         <Navbar />
         <div className="flex flex-1 overflow-hidden">
