@@ -1,232 +1,132 @@
 
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { roleApi } from "@/utils/api";
-import { DataTable } from "@/components/DataTable";
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { DataTable } from "@/components/DataTable";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { roleApi } from "@/utils/api";
 
-// Define Role type
-interface Role {
-  id: number;
-  name: string;
-  description: string;
-  department: string;
-  baseSalary: number;
-  employeeCount: number;
-}
-
-const RoleList: React.FC = () => {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+const RoleList = () => {
   const navigate = useNavigate();
-
-  // Fetch roles data
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        setLoading(true);
-        // In a real app, this would come from the API
-        // const response = await roleApi.getAll();
-        // setRoles(response.data);
-        
-        // Mock data for demonstration
-        setTimeout(() => {
-          setRoles([
-            {
-              id: 1,
-              name: "Software Engineer",
-              description: "Develops and maintains software applications",
-              department: "Engineering",
-              baseSalary: 85000,
-              employeeCount: 12
-            },
-            {
-              id: 2,
-              name: "Product Manager",
-              description: "Oversees product development lifecycle",
-              department: "Product",
-              baseSalary: 95000,
-              employeeCount: 5
-            },
-            {
-              id: 3,
-              name: "Marketing Specialist",
-              description: "Creates and implements marketing strategies",
-              department: "Marketing",
-              baseSalary: 75000,
-              employeeCount: 8
-            },
-            {
-              id: 4,
-              name: "HR Coordinator",
-              description: "Manages HR processes and employee relations",
-              department: "Human Resources",
-              baseSalary: 65000,
-              employeeCount: 4
-            },
-            {
-              id: 5,
-              name: "Financial Analyst",
-              description: "Analyzes financial data and prepares reports",
-              department: "Finance",
-              baseSalary: 80000,
-              employeeCount: 6
-            },
-          ]);
-          setLoading(false);
-        }, 600);
-      } catch (error) {
-        console.error("Error fetching roles:", error);
-        toast.error("Failed to load roles");
-        setLoading(false);
-      }
-    };
-
-    fetchRoles();
-  }, []);
+  
+  // Query to fetch roles
+  const { data: roles = [], refetch } = useQuery({
+    queryKey: ["roles"],
+    queryFn: async () => {
+      const response = await roleApi.getAll();
+      return response.data || [];
+    },
+  });
 
   // Handle delete role
-  const handleDeleteRole = async () => {
-    if (!roleToDelete) return;
-
-    try {
-      // In a real app, this would call the API
-      // await roleApi.delete(roleToDelete.id);
-
-      // For demo, just remove from state
-      setRoles((prev) => 
-        prev.filter((role) => role.id !== roleToDelete.id)
-      );
-      
-      toast.success("Role deleted successfully");
-      setRoleToDelete(null);
-    } catch (error) {
-      console.error("Error deleting role:", error);
-      toast.error("Failed to delete role");
+  const handleDeleteRole = async (id: number) => {
+    if (confirm("¿Está seguro de eliminar este cargo?")) {
+      try {
+        await roleApi.delete(id);
+        toast.success("Cargo eliminado con éxito");
+        refetch(); // Refresh the role list
+      } catch (error) {
+        toast.error("Error al eliminar el cargo");
+        console.error("Error deleting role:", error);
+      }
     }
   };
-
-  // Table columns configuration
+  
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+  
+  // Define table columns
   const columns = [
     {
       key: "name",
-      header: "Role Name",
-      cell: (role: Role) => <div className="font-medium">{role.name}</div>,
-      sortable: true,
-    },
-    {
-      key: "department",
-      header: "Department",
-      cell: (role: Role) => <div>{role.department}</div>,
+      header: "Nombre",
+      cell: (role: any) => (
+        <div className="font-medium">{role.name}</div>
+      ),
       sortable: true,
     },
     {
       key: "description",
-      header: "Description",
-      cell: (role: Role) => <div className="max-w-xs truncate">{role.description}</div>,
+      header: "Descripción",
+      cell: (role: any) => (
+        <div className="max-w-sm truncate">{role.description}</div>
+      ),
+      sortable: false,
     },
     {
-      key: "baseSalary",
-      header: "Base Salary",
-      cell: (role: Role) => <div>${role.baseSalary.toLocaleString()}</div>,
+      key: "salary",
+      header: "Salario Base",
+      cell: (role: any) => formatCurrency(role.salary),
       sortable: true,
     },
     {
-      key: "employeeCount",
-      header: "Employees",
-      cell: (role: Role) => <div>{role.employeeCount}</div>,
+      key: "employees",
+      header: "Empleados",
+      cell: (role: any) => (
+        <Badge variant="secondary">{role.employeeCount || 0}</Badge>
+      ),
       sortable: true,
     },
   ];
-
-  // Actions for each role row
-  const roleActions = (role: Role) => (
-    <div className="flex gap-2">
-      <Button 
-        variant="ghost" 
-        size="icon"
+  
+  // Define table actions
+  const actions = (role: any) => (
+    <div className="flex space-x-2">
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => navigate(`/admin/roles/${role.id}/edit`)}
-        title="Edit"
       >
-        <Edit size={16} />
+        <Pencil className="h-4 w-4" />
+        <span className="sr-only">Editar</span>
       </Button>
-      <Button 
-        variant="ghost" 
-        size="icon"
-        onClick={() => setRoleToDelete(role)}
-        title="Delete"
-        disabled={role.employeeCount > 0}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleDeleteRole(role.id)}
       >
-        <Trash2 size={16} />
+        <Trash2 className="h-4 w-4" />
+        <span className="sr-only">Eliminar</span>
       </Button>
     </div>
   );
 
   return (
     <div className="page-container">
-      <div className="page-header flex items-center justify-between">
-        <h1>Roles</h1>
-        <Button onClick={() => navigate("/admin/roles/create")}>
-          <Plus size={16} className="mr-2" />
-          Add Role
-        </Button>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Gestión de Cargos</h1>
+        <Link to="/admin/roles/new">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Cargo
+          </Button>
+        </Link>
       </div>
-
-      {loading ? (
-        <div className="w-full flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : (
-        <>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Lista de cargos</CardTitle>
+        </CardHeader>
+        <CardContent>
           <DataTable
             data={roles}
             columns={columns}
-            actions={roleActions}
+            actions={actions}
             searchable
-            searchKeys={["name", "department"]}
+            searchKeys={["name", "description"]}
           />
-          
-          <p className="text-sm text-muted-foreground mt-4">
-            Note: Roles with assigned employees cannot be deleted.
-          </p>
-        </>
-      )}
-
-      <AlertDialog 
-        open={roleToDelete !== null}
-        onOpenChange={(isOpen) => !isOpen && setRoleToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Role</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the {roleToDelete?.name} role? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteRole}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </CardContent>
+      </Card>
     </div>
   );
 };

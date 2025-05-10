@@ -1,127 +1,204 @@
 
-import React, { useState } from "react";
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Award, Plus, Search, User, Star } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { DataTable } from "@/components/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/sonner";
+import { Plus, FilePen, FileX, Star } from "lucide-react";
+import { evaluationApi } from "@/utils/api";
 
 const EvaluationList = () => {
-  // Mock data for evaluations
-  const [evaluations] = useState([
-    { id: 1, employeeName: "Carlos Mendoza", position: "Desarrollador Senior", date: "10/04/2025", score: 4.8, status: "Completada" },
-    { id: 2, employeeName: "Ana Ramírez", position: "Diseñadora UX", date: "05/04/2025", score: 4.5, status: "Completada" },
-    { id: 3, employeeName: "Roberto Sánchez", position: "Analista de Datos", date: "15/05/2025", score: 0, status: "Pendiente" },
-    { id: 4, employeeName: "Laura Torres", position: "Project Manager", date: "20/05/2025", score: 0, status: "Pendiente" },
-    { id: 5, employeeName: "Miguel Ángel Díaz", position: "DevOps Engineer", date: "02/04/2025", score: 4.2, status: "Completada" },
-  ]);
+  const navigate = useNavigate();
+  
+  // Query to fetch evaluations
+  const { data: evaluations = [], refetch } = useQuery({
+    queryKey: ["evaluations"],
+    queryFn: async () => {
+      const response = await evaluationApi.getAll();
+      return response.data || [
+        // Mock data if API is not working
+        { 
+          id: 1, 
+          employee: { id: 1, name: "Juan", lastname: "Pérez" },
+          date: "2025-04-15", 
+          score: 4.5,
+          comments: "Excelente desempeño en el último trimestre"
+        },
+        { 
+          id: 2, 
+          employee: { id: 2, name: "María", lastname: "García" }, 
+          date: "2025-04-10", 
+          score: 3.8,
+          comments: "Buen desempeño, pero puede mejorar en trabajo en equipo"
+        },
+        { 
+          id: 3, 
+          employee: { id: 3, name: "Carlos", lastname: "Rodríguez" }, 
+          date: "2025-04-05", 
+          score: 2.5,
+          comments: "Necesita mejorar en puntualidad y cumplimiento de tareas"
+        },
+      ];
+    },
+  });
+
+  // Handle delete evaluation
+  const handleDeleteEvaluation = async (id: number) => {
+    if (confirm("¿Está seguro de eliminar esta evaluación?")) {
+      try {
+        await evaluationApi.delete(id);
+        toast.success("Evaluación eliminada con éxito");
+        refetch();
+      } catch (error) {
+        toast.error("Error al eliminar la evaluación");
+        console.error("Error deleting evaluation:", error);
+      }
+    }
+  };
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('es-ES').format(date);
+  };
+  
+  // Get score color based on value
+  const getScoreColor = (score: number) => {
+    if (score >= 4.5) return "bg-green-100 text-green-800";
+    if (score >= 3.5) return "bg-blue-100 text-blue-800";
+    if (score >= 2.5) return "bg-amber-100 text-amber-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  // Get score label
+  const getScoreLabel = (score: number) => {
+    if (score >= 4.5) return "Excelente";
+    if (score >= 3.5) return "Muy Bueno";
+    if (score >= 2.5) return "Bueno";
+    if (score >= 1.5) return "Regular";
+    return "Insuficiente";
+  };
+  
+  // Render stars for score
+  const renderScoreStars = (score: number) => {
+    const fullStars = Math.floor(score);
+    const hasHalfStar = score - fullStars >= 0.5;
+    const totalStars = 5;
+    
+    return (
+      <div className="flex items-center">
+        {[...Array(fullStars)].map((_, i) => (
+          <Star key={i} size={16} className="fill-yellow-400 text-yellow-400" />
+        ))}
+        {hasHalfStar && (
+          <div className="relative">
+            <Star size={16} className="text-yellow-400" />
+            <div className="absolute top-0 left-0 w-1/2 overflow-hidden">
+              <Star size={16} className="fill-yellow-400 text-yellow-400" />
+            </div>
+          </div>
+        )}
+        {[...Array(totalStars - fullStars - (hasHalfStar ? 1 : 0))].map((_, i) => (
+          <Star key={i + fullStars + (hasHalfStar ? 1 : 0)} size={16} className="text-gray-300" />
+        ))}
+        <span className="ml-2 text-sm font-medium">{score.toFixed(1)}</span>
+      </div>
+    );
+  };
+  
+  // Define table columns
+  const columns = [
+    {
+      key: "employee",
+      header: "Empleado",
+      cell: (evaluation: any) => (
+        <div className="font-medium">
+          {evaluation.employee?.name} {evaluation.employee?.lastname}
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "date",
+      header: "Fecha",
+      cell: (evaluation: any) => formatDate(evaluation.date),
+      sortable: true,
+    },
+    {
+      key: "score",
+      header: "Puntuación",
+      cell: (evaluation: any) => renderScoreStars(evaluation.score),
+      sortable: true,
+    },
+    {
+      key: "scoreLabel",
+      header: "Calificación",
+      cell: (evaluation: any) => (
+        <Badge variant="outline" className={getScoreColor(evaluation.score)}>
+          {getScoreLabel(evaluation.score)}
+        </Badge>
+      ),
+      sortable: false,
+    },
+    {
+      key: "comments",
+      header: "Comentarios",
+      cell: (evaluation: any) => (
+        <div className="max-w-sm truncate">{evaluation.comments}</div>
+      ),
+      sortable: false,
+    },
+  ];
+  
+  // Define table actions
+  const actions = (evaluation: any) => (
+    <div className="flex space-x-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate(`/admin/evaluations/${evaluation.id}/edit`)}
+      >
+        <FilePen size={16} />
+        <span className="sr-only">Editar</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleDeleteEvaluation(evaluation.id)}
+      >
+        <FileX size={16} />
+        <span className="sr-only">Eliminar</span>
+      </Button>
+    </div>
+  );
 
   return (
     <div className="page-container">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Evaluaciones de Desempeño</h1>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Evaluación
-        </Button>
+        <Link to="/admin/evaluations/new">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Evaluación
+          </Button>
+        </Link>
       </div>
-
-      <div className="mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Evaluaciones pendientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-muted-foreground">
-                <span className="font-medium">18</span> evaluaciones pendientes para este mes
-              </div>
-              <div className="flex w-full max-w-sm items-center space-x-2">
-                <Input 
-                  placeholder="Buscar por nombre de empleado..." 
-                  className="h-9" 
-                  type="search"
-                />
-                <Button size="sm" className="h-9">
-                  <Search size={16} />
-                </Button>
-              </div>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empleado</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Fecha Programada</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {evaluations.map(evaluation => (
-                  <TableRow key={evaluation.id}>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <User size={16} className="mr-2 text-gray-500" />
-                        {evaluation.employeeName}
-                      </div>
-                    </TableCell>
-                    <TableCell>{evaluation.position}</TableCell>
-                    <TableCell>{evaluation.date}</TableCell>
-                    <TableCell>
-                      {evaluation.status === "Completada" ? (
-                        <div className="flex items-center">
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs mr-2">Completada</span>
-                          <div className="flex items-center">
-                            {[...Array(5)].map((_, idx) => (
-                              <Star 
-                                key={idx} 
-                                size={12} 
-                                className={idx < Math.floor(evaluation.score) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}
-                              />
-                            ))}
-                            <span className="text-xs ml-1 font-medium">{evaluation.score}</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-md text-xs">Pendiente</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm">
-                        {evaluation.status === "Completada" ? "Ver detalles" : "Evaluar"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-
+      
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle>Resumen de rendimiento</CardTitle>
+          <CardTitle>Historial de Evaluaciones</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="text-blue-600 font-medium mb-1">Promedio general</div>
-              <div className="text-2xl font-bold flex items-center">
-                4.3
-                <Award className="ml-2 h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="text-green-600 font-medium mb-1">Mejor departamento</div>
-              <div className="text-2xl font-bold">Desarrollo (4.7)</div>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="text-purple-600 font-medium mb-1">Evaluaciones completadas</div>
-              <div className="text-2xl font-bold">65%</div>
-            </div>
-          </div>
+          <DataTable
+            data={evaluations}
+            columns={columns}
+            actions={actions}
+            searchable
+            searchKeys={["employee.name", "employee.lastname", "comments"]}
+          />
         </CardContent>
       </Card>
     </div>
