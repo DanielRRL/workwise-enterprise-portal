@@ -6,10 +6,51 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Calendar, Check, Clock, File, FilePlus, FileText, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/sonner";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format } from "date-fns";
+
+// Define request schema for form validation
+const requestSchema = z.object({
+  type: z.string({
+    required_error: "Please select a request type",
+  }),
+  startDate: z.string({
+    required_error: "Please select a start date",
+  }),
+  endDate: z.string({
+    required_error: "Please select an end date",
+  }),
+  days: z.coerce.number()
+    .min(0.5, "Days must be at least 0.5")
+    .max(30, "Days cannot exceed 30"),
+  reason: z.string()
+    .min(5, "Reason must be at least 5 characters")
+    .max(500, "Reason cannot exceed 500 characters"),
+});
+
+type RequestFormValues = z.infer<typeof requestSchema>;
+
+// Define Request interface
+interface Request {
+  id: number; 
+  type: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason: string;
+  status: string;
+  submittedDate: string;
+  comments: string;
+}
 
 const MyRequests = () => {
-  // Mock data for requests
-  const [requests] = useState([
+  // State for requests list
+  const [requests, setRequests] = useState<Request[]>([
     { 
       id: 1, 
       type: "Vacaciones", 
@@ -55,6 +96,73 @@ const MyRequests = () => {
   // Display form state
   const [showRequestForm, setShowRequestForm] = useState(false);
 
+  // Initialize form with react-hook-form
+  const form = useForm<RequestFormValues>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: {
+      type: "",
+      startDate: format(new Date(), "yyyy-MM-dd"),
+      endDate: format(new Date(), "yyyy-MM-dd"),
+      days: 1,
+      reason: "",
+    },
+  });
+
+  // Handle form submission
+  const onSubmit = (values: RequestFormValues) => {
+    // Create new request object
+    const newRequest: Request = {
+      id: Date.now(),
+      type: values.type === "vacation" ? "Vacaciones" : values.type === "personal" ? "Permiso" : "Permiso médico",
+      startDate: format(new Date(values.startDate), "dd/MM/yyyy"),
+      endDate: format(new Date(values.endDate), "dd/MM/yyyy"),
+      days: values.days,
+      reason: values.reason,
+      status: "Pendiente",
+      submittedDate: format(new Date(), "dd/MM/yyyy"),
+      comments: ""
+    };
+
+    // Add to requests list
+    setRequests([newRequest, ...requests]);
+    
+    // Reset form and hide it
+    form.reset();
+    setShowRequestForm(false);
+    
+    // Show success message
+    toast.success("Request submitted successfully", {
+      description: `Your ${newRequest.type.toLowerCase()} request has been submitted for approval.`
+    });
+  };
+
+  // Handle date changes to automatically calculate days
+  const updateDaysFromDates = () => {
+    const startDate = form.watch("startDate");
+    const endDate = form.watch("endDate");
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+      
+      if (diffDays > 0) {
+        form.setValue("days", diffDays);
+      }
+    }
+  };
+
+  // Watch for changes in start and end dates
+  React.useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "startDate" || name === "endDate") {
+        updateDaysFromDates();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form.watch]);
+
   // Function to get status style
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -96,43 +204,115 @@ const MyRequests = () => {
             <CardDescription>Complete los detalles de su solicitud</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="request-type" className="text-sm font-medium">Tipo de solicitud</label>
-                  <select 
-                    id="request-type" 
-                    className="w-full border rounded-md p-2 bg-background"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Seleccione un tipo</option>
-                    <option value="vacation">Vacaciones ({availableDays.vacation} días disponibles)</option>
-                    <option value="personal">Permiso personal ({availableDays.personal} días disponibles)</option>
-                    <option value="sick">Permiso médico ({availableDays.sick} días disponibles)</option>
-                  </select>
+            <Form {...form}>
+              <form id="request-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de solicitud</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione un tipo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="vacation">
+                              Vacaciones ({availableDays.vacation} días disponibles)
+                            </SelectItem>
+                            <SelectItem value="personal">
+                              Permiso personal ({availableDays.personal} días disponibles)
+                            </SelectItem>
+                            <SelectItem value="sick">
+                              Permiso médico ({availableDays.sick} días disponibles)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="days"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número de días</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min="0.5" 
+                            step="0.5" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(parseFloat(e.target.value));
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de inicio</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de fin</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="reason"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Motivo</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describa el motivo de su solicitud" 
+                            rows={3}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="request-days" className="text-sm font-medium">Número de días</label>
-                  <Input id="request-days" type="number" min="0.5" step="0.5" placeholder="Número de días" />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="start-date" className="text-sm font-medium">Fecha de inicio</label>
-                  <Input id="start-date" type="date" />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="end-date" className="text-sm font-medium">Fecha de fin</label>
-                  <Input id="end-date" type="date" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="reason" className="text-sm font-medium">Motivo</label>
-                  <Textarea id="reason" placeholder="Describa el motivo de su solicitud" rows={3} />
-                </div>
-              </div>
-            </form>
+              </form>
+            </Form>
           </CardContent>
           <CardFooter className="flex justify-end space-x-2">
             <Button variant="outline" onClick={() => setShowRequestForm(false)}>Cancelar</Button>
-            <Button>Enviar solicitud</Button>
+            <Button type="submit" form="request-form">Enviar solicitud</Button>
           </CardFooter>
         </Card>
       )}
