@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, UserEdit, Trash2, UserMinus, CalendarClock } from "lucide-react";
+import { Plus, Pencil, UserMinus, CalendarClock } from "lucide-react";
 import { DataTable } from "@/components/DataTable";
 import { toast } from "@/components/ui/sonner";
 import { employeeApi } from "@/utils/api";
@@ -77,7 +77,7 @@ const EmployeeList = () => {
         size="sm"
         onClick={() => navigate(`/admin/employees/${employee.id}/edit`)}
       >
-        <UserEdit className="h-4 w-4" />
+        <Pencil className="h-4 w-4" />
         <span className="sr-only">Editar</span>
       </Button>
       <Button
